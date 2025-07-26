@@ -53,7 +53,8 @@ function setLoadingState(isLoading, message = "") {
 }
 
 async function getGeminiResponse(prompt) {
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
+    // This URL has been updated to a current working model
+    const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
     
     const response = await fetch(API_URL, {
         method: 'POST',
@@ -64,6 +65,7 @@ async function getGeminiResponse(prompt) {
     });
 
     if (!response.ok) {
+        // This line correctly pointed to the error
         throw new Error(`Gemini API error: ${response.statusText}`);
     }
 
