@@ -1,22 +1,301 @@
-<!DOCTYPE html>
+
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time Voice AI</title>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+        .container {
+            max-width: 90vw;
+            width: 600px;
+            padding: 2rem;
+        }
+        h1 {
+            font-size: 2.5rem;
+            color: #ffffff;
+        }
+        #start-button {
+            background-color: #1E90FF; /* Dodger Blue */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            margin-top: 20px;
+        }
+        #start-button:hover {
+            background-color: #4682B4; /* Steel Blue */
+            transform: scale(1.02);
+        }
+        #start-button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+        #visualizer {
+            width: 100%;
+            height: 100px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        #status {
+            font-size: 1.1rem;
+            color: #a0a0a0;
+            margin-top: 20px;
+            min-height: 24px;
+            transition: color 0.3s ease;
+        }
+        #transcript-preview {
+            font-size: 1rem;
+            color: #ddd;
+            min-height: 50px;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: rgba(255, 255, 255, 0.05);
+            word-wrap: break-word;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <h1>Real-time AI Assistant</h1>
         <p>Start the session, and begin speaking.</p>
         
-        <canvas id="visualizer" width="600" height="100"></canvas>
+        <canvas id="visualizer"></canvas>
         
         <div id="status">Click "Start Session" to begin.</div>
+        <div id="transcript-preview"></div>
         <button id="start-button">Start Session</button>
     </div>
 
-    <script src="script.js"></script>
+    <script>
+        // --- CONFIGURATION ---
+        const GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY'; // IMPORTANT: PASTE YOUR KEY HERE
+        const SILENCE_DETECTION_TIME = 1500; // 1.5 seconds
+
+        // --- DOM ELEMENTS ---
+        const startButton = document.getElementById('start-button');
+        const statusDiv = document.getElementById('status');
+        const transcriptPreview = document.getElementById('transcript-preview');
+        const canvas = document.getElementById('visualizer');
+        const canvasCtx = canvas.getContext('2d');
+
+        // --- BROWSER API SETUP ---
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = SpeechRecognition ? new SpeechRecognition() : null;
+        const speechSynthesis = window.speechSynthesis;
+
+        // --- STATE MANAGEMENT ---
+        const STATE = { IDLE: 'idle', LISTENING: 'listening', THINKING: 'thinking', SPEAKING: 'speaking' };
+        let currentState = STATE.IDLE;
+        let silenceTimer;
+
+        // --- AUDIO VISUALIZER VARIABLES ---
+        let audioContext, analyser, source, rafId;
+        let dataArray, bufferLength;
+
+        // --- INITIALIZATION ---
+        function init() {
+            if (!recognition || !navigator.mediaDevices || !speechSynthesis) {
+                updateState(STATE.IDLE, "Sorry, your browser doesn't support the required APIs. Please use a modern desktop browser like Chrome or Edge.");
+                startButton.disabled = true;
+                return;
+            }
+            startButton.addEventListener('click', startSession);
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+        }
+        
+        function resizeCanvas() {
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+        }
+
+        // --- CORE SESSION LOGIC ---
+        async function startSession() {
+            if (currentState !== STATE.IDLE) return;
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                setupAudioVisualizer(stream);
+                setupSpeechRecognition();
+                updateState(STATE.LISTENING);
+            } catch (err) {
+                console.error('Error accessing microphone:', err);
+                if (err.name === 'NotFoundError') {
+                    updateState(STATE.IDLE, 'No microphone found. Please connect a microphone and try again.');
+                } else if (err.name === 'NotAllowedError') {
+                    updateState(STATE.IDLE, 'Microphone access was denied. Please allow access in your browser settings.');
+                } else {
+                    updateState(STATE.IDLE, 'Could not access microphone.');
+                }
+            }
+        }
+
+        // --- STATE AND UI MANAGEMENT ---
+        function updateState(newState, message = '') {
+            currentState = newState;
+            startButton.disabled = true;
+            startButton.style.display = 'none';
+
+            switch (newState) {
+                case STATE.IDLE:
+                    statusDiv.textContent = message || 'Session ended.';
+                    startButton.disabled = false;
+                    startButton.style.display = 'block';
+                    transcriptPreview.textContent = '';
+                    break;
+                case STATE.LISTENING:
+                    statusDiv.textContent = message || 'Listening...';
+                    recognition.start();
+                    drawVisualizer();
+                    break;
+                case STATE.THINKING:
+                    statusDiv.textContent = message || '🤔 Thinking...';
+                    recognition.stop();
+                    cancelAnimationFrame(rafId);
+                    break;
+                case STATE.SPEAKING:
+                    statusDiv.textContent = message || '🔊 Speaking...';
+                    break;
+            }
+        }
+
+        // --- AUDIO VISUALIZER ---
+        function setupAudioVisualizer(stream) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            source = audioContext.createMediaStreamSource(stream);
+            source.connect(analyser);
+            analyser.fftSize = 256;
+            bufferLength = analyser.frequencyBinCount;
+            dataArray = new Uint8Array(bufferLength);
+        }
+
+        function drawVisualizer() {
+            if (currentState !== STATE.LISTENING) return;
+
+            rafId = requestAnimationFrame(drawVisualizer);
+            analyser.getByteFrequencyData(dataArray);
+            canvasCtx.fillStyle = '#1a1a1a';
+            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+            const barWidth = (canvas.width / bufferLength) * 1.5;
+            let barHeight;
+            let x = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                barHeight = dataArray[i] / 2;
+                const intensity = barHeight / 128.0;
+                const hue = 120 - (intensity * 120);
+                canvasCtx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+                canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+                x += barWidth + 1;
+            }
+        }
+        
+        // --- SPEECH RECOGNITION (REWRITTEN LOGIC) ---
+        function setupSpeechRecognition() {
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.onresult = (event) => {
+                if (currentState !== STATE.LISTENING) return;
+                
+                // Reset the silence timer every time a new result comes in
+                clearTimeout(silenceTimer);
+
+                // Build the full transcript from the event results array
+                const transcript = Array.from(event.results)
+                    .map(result => result[0])
+                    .map(result => result.transcript)
+                    .join('');
+                
+                transcriptPreview.textContent = transcript;
+
+                // Set a timer to process the transcript after a period of silence
+                silenceTimer = setTimeout(() => {
+                    const textToProcess = transcript.trim();
+                    if (textToProcess) {
+                        processTranscript(textToProcess);
+                    }
+                }, SILENCE_DETECTION_TIME);
+            };
+
+            recognition.onend = () => {
+                // If recognition stops unexpectedly, restart it
+                if (currentState === STATE.LISTENING) {
+                    recognition.start();
+                }
+            };
+        }
+
+        function processTranscript(transcript) {
+            transcriptPreview.textContent = ''; // Clear the preview for the next turn
+            updateState(STATE.THINKING);
+            getGeminiResponse(transcript);
+        }
+
+        // --- GEMINI API AND SPEECH SYNTHESIS ---
+        async function getGeminiResponse(prompt) {
+            try {
+                const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+                
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `Respond conversationally to this: "${prompt}"` }] }] })
+                });
+
+                if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+
+                const data = await response.json();
+                const aiResponse = data.candidates[0].content.parts[0].text;
+                speak(aiResponse);
+            } catch (error) {
+                console.error('Error fetching Gemini response:', error);
+                speak("I'm sorry, I had trouble connecting to my brain. Let's try that again.");
+            }
+        }
+        
+        function speak(text) {
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+            }
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            updateState(STATE.SPEAKING);
+
+            utterance.onend = () => {
+                // IMPORTANT: Transition back to listening after speaking is done
+                updateState(STATE.LISTENING);
+            };
+            
+            utterance.onerror = (event) => {
+                console.error('SpeechSynthesis Error:', event.error);
+                // Even if speech fails, go back to listening
+                updateState(STATE.LISTENING);
+            };
+
+            speechSynthesis.speak(utterance);
+        }
+
+        // --- START THE APP ---
+        init();
+    </script>
 </body>
 </html>
