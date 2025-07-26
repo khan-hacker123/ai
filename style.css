@@ -1,77 +1,78 @@
 body {
-    font-family: sans-serif;
-    background-color: #f0f0f0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #121212;
+    color: #e0e0e0;
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
     margin: 0;
+    text-align: center;
 }
 
-#ai-container {
-    width: 800px;
-    height: 600px;
-    border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-    background-image: url('study-room.jpg'); /* Your background image */
-    background-size: cover;
-    position: relative;
-    overflow: hidden;
+.container {
+    max-width: 600px;
+    padding: 2rem;
 }
 
-#video-wrapper {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 300px; /* Adjust size of your avatar video */
-    height: 300px;
-    border-radius: 50%;
-    background-color: rgba(0,0,0,0.3); /* Placeholder background */
-    overflow: hidden;
+h1 {
+    font-size: 2.5rem;
+    color: #ffffff;
 }
 
-#video-wrapper video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+p {
+    color: #bbbbbb;
+    font-size: 1.1rem;
 }
 
-#interaction-area {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background: rgba(0, 0, 0, 0.6);
-    padding: 20px;
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+#talk-button {
+    background-color: #8A2BE2; /* A vibrant purple */
     color: white;
-}
-
-#status-text {
-    flex-grow: 1;
-}
-
-#user-input {
-    padding: 10px;
     border: none;
-    border-radius: 5px;
-    width: 300px;
-}
-
-#send-button {
-    padding: 10px 20px;
-    border: none;
-    background-color: #4CAF50;
-    color: white;
-    border-radius: 5px;
+    border-radius: 50px;
+    padding: 15px 30px;
+    font-size: 1.2rem;
     cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    margin-top: 20px;
+    margin-bottom: 20px;
 }
 
-#send-button:disabled {
-    background-color: #cccccc;
+#talk-button:hover {
+    background-color: #9932CC;
+    transform: scale(1.05);
+}
+
+#talk-button:disabled {
+    background-color: #555;
     cursor: not-allowed;
+    transform: none;
+}
+
+#status {
+    font-size: 1rem;
+    color: #a0a0a0;
+    min-height: 24px;
+    transition: color 0.3s ease;
+}
+
+/* Style for when the AI is listening */
+.listening {
+    color: #FFD700; /* Gold color */
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.7;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
