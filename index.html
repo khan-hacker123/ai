@@ -3,15 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voice AI Assistant</title>
+    <title>Real-time Voice AI</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h1>Voice AI Assistant</h1>
-        <p>Powered by Google Gemini</p>
-        <button id="talk-button">Click and Speak</button>
-        <div id="status">Click the button and start talking.</div>
+        <h1>Real-time AI Assistant</h1>
+        <p>Start the session, and begin speaking.</p>
+        
+        <canvas id="visualizer" width="600" height="100"></canvas>
+        
+        <div id="status">Click "Start Session" to begin.</div>
+        <button id="start-button">Start Session</button>
     </div>
 
     <script src="script.js"></script>
