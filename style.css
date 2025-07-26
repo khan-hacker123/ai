@@ -1,0 +1,77 @@
+body {
+    font-family: sans-serif;
+    background-color: #f0f0f0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+#ai-container {
+    width: 800px;
+    height: 600px;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    background-image: url('study-room.jpg'); /* Your background image */
+    background-size: cover;
+    position: relative;
+    overflow: hidden;
+}
+
+#video-wrapper {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 300px; /* Adjust size of your avatar video */
+    height: 300px;
+    border-radius: 50%;
+    background-color: rgba(0,0,0,0.3); /* Placeholder background */
+    overflow: hidden;
+}
+
+#video-wrapper video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#interaction-area {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 20px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: white;
+}
+
+#status-text {
+    flex-grow: 1;
+}
+
+#user-input {
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    width: 300px;
+}
+
+#send-button {
+    padding: 10px 20px;
+    border: none;
+    background-color: #4CAF50;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#send-button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
