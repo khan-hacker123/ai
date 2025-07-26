@@ -1,18 +1,16 @@
 // --- CONFIGURATION ---
-const GEMINI_API_KEY = 'AIzaSyBIDZdxWQgVb8g_Q7VcUl1BGbzmrOfz9YI'; // Replace with your Google AI Studio API Key
-const DID_API_KEY = 'a2hhbm93YWlzMjU0NDMyMjJAZ21haWwuY29t:H4Da85QOc5waNJ1O0OrFo'; // Replace with your D-ID API Key
+const GEMINI_API_KEY = 'AIzaSyBIDZdxWQgVb8g_Q7VcUl1BGbzmrOfz9YI';
+const DID_API_KEY = 'a2hhbm93YWlzMjU0NDMyMjJAZ21haWwuY29t:H4Da85QOc5waNJ1O0OrFo';
+const DID_AVATAR_URL = 'https://studio.d-id.com/share?id=4dfae6d9d5626d7a5f902cfc2dfb7eaf&utm_source=copy'; // The direct image link, not the share link!
+
+// --- D-ID API Specifics ---
+const DID_VOICE_ID = 'en-US-JennyNeural'; 
 
 // --- HTML Elements ---
 const sendButton = document.getElementById('send-button');
 const userInput = document.getElementById('user-input');
 const videoWrapper = document.getElementById('video-wrapper');
 const statusText = document.getElementById('status-text');
-
-// --- D-ID API Specifics ---
-// You can get the voice ID from D-ID's documentation or by trying them in the studio
-const DID_VOICE_ID = 'en-US-JennyNeural'; // Example: A standard female voice
-// Use a pre-made avatar URL from D-ID or upload your own and get its URL
-const DID_AVATAR_URL = 'https://d-id-public-bucket.s3.amazonaws.com/or-tools/valid_inputs/toucan.png'; // IMPORTANT: Replace with your chosen avatar's image URL from D-ID studio
 
 // --- Event Listener ---
 sendButton.addEventListener('click', handleSend);
@@ -30,15 +28,12 @@ async function handleSend() {
     userInput.value = '';
 
     try {
-        // 1. Get text response from Gemini
         const aiTextResponse = await getGeminiResponse(prompt);
         statusText.textContent = "Generating video...";
 
-        // 2. Generate video from D-ID using the AI's text
         const videoUrl = await getDidVideo(aiTextResponse);
         statusText.textContent = "Playing response...";
 
-        // 3. Play the video
         playVideo(videoUrl);
 
     } catch (error) {
@@ -51,10 +46,8 @@ async function handleSend() {
 function setLoadingState(isLoading, message = "") {
     sendButton.disabled = isLoading;
     statusText.textContent = message;
-    if (isLoading) {
-        userInput.disabled = true;
-    } else {
-        userInput.disabled = false;
+    userInput.disabled = isLoading;
+    if (!isLoading) {
         userInput.focus();
     }
 }
@@ -78,12 +71,10 @@ async function getGeminiResponse(prompt) {
     return data.candidates[0].content.parts[0].text;
 }
 
-
-// D-ID has a two-step process: 1. Create a "talk" (job). 2. Get the result.
 async function getDidVideo(text) {
     const createTalkUrl = 'https://api.d-id.com/talks';
     const headers = {
-        'Authorization': `Basic ${btoa(DID_API_KEY + ':')}`, // D-ID uses Basic Auth with the API key as username
+        'Authorization': `Basic ${btoa(DID_API_KEY + ':')}`,
         'Content-Type': 'application/json'
     };
 
@@ -97,7 +88,6 @@ async function getDidVideo(text) {
         config: { result_format: 'mp4' }
     };
 
-    // 1. Create the talk
     const createResponse = await fetch(createTalkUrl, {
         method: 'POST',
         headers: headers,
@@ -112,9 +102,8 @@ async function getDidVideo(text) {
     const createData = await createResponse.json();
     const talkId = createData.id;
 
-    // 2. Poll for the result
     while (true) {
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before checking again
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds
 
         const getTalkUrl = `${createTalkUrl}/${talkId}`;
         const getResponse = await fetch(getTalkUrl, { method: 'GET', headers: headers });
@@ -129,18 +118,17 @@ async function getDidVideo(text) {
 }
 
 function playVideo(url) {
-    videoWrapper.innerHTML = ''; // Clear previous video
+    videoWrapper.innerHTML = '';
     const videoElement = document.createElement('video');
     videoElement.src = url;
     videoElement.autoplay = true;
 
     videoElement.addEventListener('ended', () => {
         setLoadingState(false, "Ask me anything...");
-        videoWrapper.innerHTML = ''; // Clear video after it finishes
+        videoWrapper.innerHTML = '';
     });
     
     videoWrapper.appendChild(videoElement);
 }
 
-// Initial state
 setLoadingState(false, "Ask me anything...");
